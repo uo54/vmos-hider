@@ -1,0 +1,15 @@
+<resources>
+    <!-- system-like light calculator palette -->
+    <color name="bg_app">#F5F5F5</color>
+    <color name="bg_display">#FFFFFF</color>
+    <color name="text_display">#111111</color>
+    <color name="text_hint">#9E9E9E</color>
+    <color name="key_digit">#FFFFFF</color>
+    <color name="key_digit_text">#212121</color>
+    <color name="key_func">#E9EDF2</color>
+    <color name="key_func_text">#1565C0</color>
+    <color name="key_accent">#1565C0</color>
+    <color name="key_accent_text">#FFFFFF</color>
+    <color name="key_border">#E0E0E0</color>
+    <color name="ic_launcher_background">#0E5A6D</color>
+</resources>
