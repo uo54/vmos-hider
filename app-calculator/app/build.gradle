@@ -1,0 +1,28 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.lenovo.calculator2'
+    compileSdk 35
+
+    defaultConfig {
+        // identity is fully overridable from CI:  -PcalcPkg=com.xxx.yyy -PcalcLabel=计算器
+        applicationId project.findProperty('calcPkg') ?: 'com.lenovo.calculator2'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+        resValue "string", "calc_label", project.findProperty('calcLabel') ?: '计算器'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
