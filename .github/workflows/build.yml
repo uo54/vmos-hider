@@ -1,0 +1,227 @@
+# ============================================================================
+# 隐私伪装双APK 一键编译
+# ----------------------------------------------------------------------------
+# 触发方式：
+#   1. 手动: Actions -> Build -> Run workflow（可改参数）
+#   2. push 到 main 分支自动执行（用仓库默认参数）
+#
+# 需要准备：
+#   * 原版（已清签名校验的）VMOS Pro APK 二选一：
+#       a) 上传到 GitHub Release（推荐，网页可传大文件）：
+#          仓库 Releases -> 新建 release（tag 写 original）-> 上传 .apk 附件
+#       b) 或用 git 把 APK 放到仓库根目录 inputs/vmos-original.apk
+#   * 首次运行会自动生成固定签名密钥并提交到 keys/release.jks，
+#     之后每次编译都可以直接覆盖升级（不丢数据）。
+# ============================================================================
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: '主APK(VMOS)伪装显示名'
+        required: false
+        default: '系统桌面'
+      calc_pkg:
+        description: '伪装计算器包名(冲突时可改，如 com.lenovo.calculator2)'
+        required: false
+        default: 'com.lenovo.calculator2'
+      calc_name:
+        description: '伪装计算器显示名'
+        required: false
+        default: '计算器'
+      main_smoke:
+        description: '冒烟测试模式：保留桌面图标可正常打开（先验证修补后VMOS能跑），跑通后再关闭做最终无痕版'
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  build-all:
+    runs-on: ubuntu-latest
+    env:
+      KS_PASS: 'vmos-hider-2024'
+      KS_ALIAS: 'vmos'
+      KS_FILE: 'keys/release.jks'
+      CALC_PKG: ${{ inputs.calc_pkg || 'com.lenovo.calculator2' }}
+      CALC_NAME: ${{ inputs.calc_name || '计算器' }}
+      LABEL: ${{ inputs.label || '系统桌面' }}
+      SMOKE: ${{ inputs.main_smoke == true }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: 安装 Android SDK (build-tools 34 / platform 35)
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-35 build-tools;34.0.0'
+
+      # ------------------------------------------------------------------
+      # 0) 取得原版 VMOS APK
+      # ------------------------------------------------------------------
+      - name: 定位原版 VMOS APK
+        id: locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          APK=""
+          for cand in inputs/vmos-original.apk vmos_original.apk 'VMOS Pro_3.0.9.apk'; do
+            if [ -f "$cand" ]; then APK="$cand"; echo "找到仓库内APK: $cand"; break; fi
+          done
+          if [ -z "$APK" ]; then
+            mkdir -p dl
+            # 优先取名为 original 的 release
+            if gh release view original --json tagName -q .tagName >/dev/null 2>&1; then
+              gh release download original --dir dl || true
+            fi
+            if ! ls dl/*.apk >/dev/null 2>&1; then
+              TAG=$(gh release view --json tagName -q .tagName 2>/dev/null | head -1)
+              if [ -n "$TAG" ]; then gh release download "$TAG" --dir dl || true; fi
+            fi
+            # 优先挑名字含 vmos/original 的附件，避免误取同名 release 里的其他 APK
+            APK=$(ls dl/*.apk 2>/dev/null | grep -iE "vmos|original" | head -1)
+            [ -z "$APK" ] && APK=$(ls dl/*.apk 2>/dev/null | head -1)
+          fi
+          if [ -z "$APK" ]; then
+            echo "::error::找不到原版 APK！请先上传到 GitHub Release(标签 original) 或放进仓库 inputs/vmos-original.apk"
+            exit 1
+          fi
+          echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          echo "原版 APK: $APK ($(du -h "$APK" | cut -f1))"
+
+      # ------------------------------------------------------------------
+      # 1) 固定签名密钥（首次自动生成并提交）
+      # ------------------------------------------------------------------
+      - name: 准备签名密钥
+        id: keystore
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ ! -f "$KS_FILE" ]; then
+            mkdir -p keys
+            keytool -genkeypair -v \
+              -keystore "$KS_FILE" -storepass "$KS_PASS" -keypass "$KS_PASS" \
+              -alias "$KS_ALIAS" -keyalg RSA -keysize 2048 -validity 10950 \
+              -dname "CN=Personal,O=Personal,C=CN" >/dev/null 2>&1
+            echo "已生成新密钥 keys/release.jks"
+            # 尝试自动提交回仓库（失败也不影响本此构建，密钥会随产物一并上传）
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add "$KS_FILE" 2>/dev/null
+            git commit -m "chore: add fixed signing keystore [skip ci]" 2>/dev/null && \
+              git push -q || echo "::warning::密钥自动提交失败——请从产物 release-keystore 下载 keys/release.jks 并手动提交到仓库，否则下次覆盖安装需先卸载"
+            echo "generated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "使用仓库内已有密钥 $KS_FILE"
+          fi
+
+      # ------------------------------------------------------------------
+      # 2) 修补主APK（清单手术 + 图标伪装 + 重打包，不重编译 dex/res）
+      # ------------------------------------------------------------------
+      - name: 修补 VMOS → 系统桌面 APK
+        run: |
+          mkdir -p out
+          if [ "$SMOKE" = "true" ]; then
+            # 冒烟模式：先保留桌面入口，便于直接点图标验证 VMOS 能正常开机
+            node scripts/repack.mjs "${{ steps.locate.outputs.apk }}" out/SystemDesktop-unsigned.apk --label "$LABEL" --keep-launcher
+          else
+            node scripts/repack.mjs "${{ steps.locate.outputs.apk }}" out/SystemDesktop-unsigned.apk --label "$LABEL"
+          fi
+
+      - name: 自检修补结果
+        run: |
+          unzip -p out/SystemDesktop-unsigned.apk AndroidManifest.xml > /tmp/patched.xml
+          node tools/axml_dump.mjs /tmp/patched.xml > /tmp/patched.txt
+          echo "--- 自检统计 ---"
+          echo "label系统桌面: $(grep -Fc "label=\"$LABEL\"" /tmp/patched.txt)"
+          echo "excludeFromRecents=true: $(grep -o 'excludeFromRecents=true' /tmp/patched.txt | wc -l)"
+          echo "LAUNCHER残留: $(grep -c LAUNCHER /tmp/patched.txt)"
+          if [ "$SMOKE" != "true" ] && grep -q LAUNCHER /tmp/patched.txt; then echo "::error::LAUNCHER 未清除干净"; exit 1; fi
+
+      - name: zipalign + 签名（主APK）
+        run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          "$BT/zipalign" -f -p 4 out/SystemDesktop-unsigned.apk out/SystemDesktop-aligned.apk
+          "$BT/apksigner" sign \
+            --ks "$KS_FILE" --ks-key-alias "$KS_ALIAS" \
+            --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" \
+            --out "out/SystemDesktop.apk" out/SystemDesktop-aligned.apk
+          "$BT/apksigner" verify --print-certs "out/SystemDesktop.apk" | head -3
+          echo "签名完成: out/SystemDesktop.apk"
+
+      - name: 安装 Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # ------------------------------------------------------------------
+      # 3) 编译伪装计算器
+      # ------------------------------------------------------------------
+      - name: 编译伪装计算器 APK
+        working-directory: app-calculator
+        run: |
+          gradle assembleRelease \
+            -PcalcPkg="$CALC_PKG" \
+            -PcalcLabel="$CALC_NAME" \
+            --no-daemon -q
+
+      - name: 签名（计算器）
+        run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          cp app-calculator/app/build/outputs/apk/release/app-release-unsigned.apk out/calc-unsigned.apk
+          "$BT/zipalign" -f -p 4 out/calc-unsigned.apk out/calc-aligned.apk
+          "$BT/apksigner" sign \
+            --ks "$KS_FILE" --ks-key-alias "$KS_ALIAS" \
+            --ks-pass "pass:$KS_PASS" --key-pass "pass:$KS_PASS" \
+            --out "out/Calculator.apk" out/calc-aligned.apk
+          "$BT/apksigner" verify --print-certs "out/Calculator.apk" | head -3
+          echo "签名完成: out/Calculator.apk"
+
+      - name: 计算器自检
+        run: |
+          APK=$(ls app-calculator/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1)
+          echo "计算器 APK 产物: $APK"
+          ls -la out/
+
+      # ------------------------------------------------------------------
+      # 4) 汇总产物
+      # ------------------------------------------------------------------
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hidden-apks
+          path: |
+            out/SystemDesktop.apk
+            out/Calculator.apk
+          if-no-files-found: error
+
+      - name: 上传首次生成的密钥（若本次新生成且未提交成功）
+        if: steps.keystore.outputs.generated == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-keystore
+          path: keys/release.jks
+          if-no-files-found: ignore
+
+      - name: 汇总
+        run: |
+          echo "## 编译完成" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 产物 | 说明 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SystemDesktop.apk | 伪装后的 VMOS（名称:$LABEL，无桌面入口，最近任务隐藏） |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Calculator.apk | 伪装计算器（$CALC_NAME，输入 ${{ '1955' }} 后按 = 打开上述 APK） |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "安装顺序：先装 SystemDesktop.apk，再装 Calculator.apk。" >> "$GITHUB_STEP_SUMMARY"
