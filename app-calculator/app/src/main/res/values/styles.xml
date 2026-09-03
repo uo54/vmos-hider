@@ -1,0 +1,7 @@
+<resources>
+    <style name="CalcTheme" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/bg_app</item>
+        <item name="android:statusBarColor">@color/bg_app</item>
+        <item name="android:navigationBarColor">@color/bg_app</item>
+    </style>
+</resources>
