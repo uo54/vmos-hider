@@ -1,0 +1,21 @@
+# ---- 构建产物 / 本地分析 ----
+*.apk
+*.apks
+build/
+app-calculator/build/
+app-calculator/.gradle/
+.gradle/
+analysis/
+dl/
+out/
+
+# ---- 原版 APK（二选一交付：Release 附件 或 本目录；不建议提交大文件）----
+inputs/*
+!inputs/README.txt
+
+# ---- 本地临时 ----
+.DS_Store
+Thumbs.db
+*.log
+
+# 注意：keys/release.jks 需要入库（固定签名密钥，首次构建自动生成并提交），不要忽略它
