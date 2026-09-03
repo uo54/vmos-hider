@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    android:background="@color/bg_app">
+
+    <!-- display panel -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.25"
+        android:orientation="vertical"
+        android:gravity="bottom|end"
+        android:paddingLeft="24dp"
+        android:paddingRight="24dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:id="@+id/tvExpression"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textColor="@color/text_hint"
+            android:textSize="18sp"
+            android:singleLine="true"
+            android:ellipsize="start"
+            android:paddingBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvMain"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textColor="@color/text_display"
+            android:textSize="44sp"
+            android:maxLines="1"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.02"
+            android:text="0" />
+    </LinearLayout>
+
+    <!-- keypad host (buttons built in code) -->
+    <GridLayout
+        android:id="@+id/keypad"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2"
+        android:columnCount="4"
+        android:rowCount="5"
+        android:useDefaultMargins="false"
+        android:padding="6dp" />
+</LinearLayout>
