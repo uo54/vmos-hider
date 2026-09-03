@@ -1,0 +1,27 @@
+<resources>
+    <!-- 应用显示名由 build.gradle 的 resValue 注入（支持 CI 参数化），此处不再定义以免资源重复 -->
+
+    <!-- display & keypad labels (a normal calculator would show these) -->
+    <string name="k_0">0</string>
+    <string name="k_1">1</string>
+    <string name="k_2">2</string>
+    <string name="k_3">3</string>
+    <string name="k_4">4</string>
+    <string name="k_5">5</string>
+    <string name="k_6">6</string>
+    <string name="k_7">7</string>
+    <string name="k_8">8</string>
+    <string name="k_9">9</string>
+    <string name="k_dot">.</string>
+    <string name="k_add">+</string>
+    <string name="k_sub">−</string>
+    <string name="k_mul">×</string>
+    <string name="k_div">÷</string>
+    <string name="k_eq">=</string>
+    <string name="k_clear">C</string>
+    <string name="k_back">⌫</string>
+    <string name="k_pct">%</string>
+    <string name="k_sign">±</string>
+    <string name="err_div0">错误</string>
+    <string name="err_too_long">位数过多</string>
+</resources>
