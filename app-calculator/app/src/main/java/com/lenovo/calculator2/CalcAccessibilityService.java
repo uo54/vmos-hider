@@ -2,6 +2,8 @@ package com.lenovo.calculator2;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
@@ -16,6 +18,7 @@ import android.view.accessibility.AccessibilityEvent;
 public class CalcAccessibilityService extends AccessibilityService {
     private static final String TAG = "CalcGuardA11y";
 
+    private final Handler handler = new Handler(Looper.getMainLooper());
     private volatile String lastTop = null;
     private long lastEventMs = 0;
     private boolean pending = false;
@@ -54,7 +57,7 @@ public class CalcAccessibilityService extends AccessibilityService {
         if (pending) return;
         pending = true;
         final Context ctx = getApplicationContext();
-        getMainHandler().postDelayed(() -> {
+        handler.postDelayed(() -> {
             pending = false;
             if (Guardian.isInOpeningGrace()) return;
             // 延迟后再确认：若期间又回到了目标窗口则放弃
