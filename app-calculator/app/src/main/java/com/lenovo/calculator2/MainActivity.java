@@ -45,6 +45,26 @@ public class MainActivity extends Activity {
         tvExpr = findViewById(R.id.tvExpression);
         buildKeypad();
         refresh();
+        // 初始化 Dhizuku 并（首次）请求设备所有者授权，用于“离开即挂起”守卫
+        Guardian.initDhizuku(this);
+        GuardForegroundService.ensureRunning(this);   // 常驻：让系统设置出现“允许后台运行”入口
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (!com.rosan.dhizuku.api.Dhizuku.isPermissionGranted()) {
+                com.rosan.dhizuku.api.Dhizuku.requestPermission(new com.rosan.dhizuku.api.DhizukuRequestPermissionListener() {
+                    @Override
+                    public void onRequestPermission(int grantResult) throws android.os.RemoteException {
+                        // granted -> Guardian 可用；拒绝也无碍（只是守卫不生效）
+                    }
+                });
+            }
+        } catch (Throwable ignored) {
+        }
     }
 
     // ---------------------------------------------------------------- UI
@@ -244,6 +264,10 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------- 暗码启动
     private void tryLaunchVmos() {
         try {
+            // 若被守卫挂起，先解挂再启动（冷启动，界面会加载几秒属正常）
+            Guardian.unsuspend(this);
+            Guardian.markOpening();
+
             Intent i = new Intent();
             i.setComponent(new ComponentName(VMOS_PKG, VMOS_ENTRY));
             i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
