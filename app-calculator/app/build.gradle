@@ -2,9 +2,7 @@ plugins {
     id 'com.android.application'
 }
 
-repositories {
-    mavenCentral()
-}
+
 
 android {
     namespace 'com.lenovo.calculator2'
