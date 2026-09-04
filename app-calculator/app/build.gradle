@@ -2,6 +2,10 @@ plugins {
     id 'com.android.application'
 }
 
+repositories {
+    mavenCentral()
+}
+
 android {
     namespace 'com.lenovo.calculator2'
     compileSdk 35
@@ -25,4 +29,9 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+}
+
+dependencies {
+    // Dhizuku（设备所有者）API —— 用于对目标 App 执行“挂起/解挂”
+    implementation 'io.github.iamr0s:Dhizuku-API:2.5.3'
 }
