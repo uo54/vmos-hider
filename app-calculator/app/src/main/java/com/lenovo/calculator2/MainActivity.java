@@ -119,10 +119,16 @@ public class MainActivity extends Activity {
         if (isDigit(k)) {
             if (fresh) clearAll();
             if (cur.toString().equals("0")) cur.setLength(0);
-            if (cur.length() < 16) cur.append(c);
+            if (cur.length() < 16) {
+                cur.append(c);
+                fresh = false;            // 进入连续输入状态
+            }
         } else if (k.equals(".")) {
             if (fresh) clearAll();
-            if (cur.indexOf(".") < 0) cur.append('.');
+            if (cur.indexOf(".") < 0) {
+                cur.append('.');
+                fresh = false;            // 进入连续输入状态
+            }
         } else if (k.equals("C")) {
             clearAll();
         } else if (k.equals("\u232B")) {              // backspace
