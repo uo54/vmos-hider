@@ -86,6 +86,7 @@ const [inApk, outApk] = process.argv.slice(2);
 const labelArgIdx = process.argv.indexOf('--label');
 const LABEL = labelArgIdx >= 0 ? process.argv[labelArgIdx + 1] : '系统桌面';
 const KEEP_LAUNCHER = process.argv.includes('--keep-launcher');
+const NOHISTORY = !process.argv.includes('--no-nohistory'); // 默认开启：回桌面即结束界面不留任务
 
 const original = readFileSync(inApk);
 const entries = readCentral(original);
@@ -98,7 +99,7 @@ for (const e of entries) {
   const name = e.name;
   if (name === 'AndroidManifest.xml') {
     const raw = inflateRawSync(e.data);
-    const res = patchManifest(raw, { label: LABEL, removeLauncher: !KEEP_LAUNCHER });
+    const res = patchManifest(raw, { label: LABEL, removeLauncher: !KEEP_LAUNCHER, addNoHistory: NOHISTORY });
     replacements.set(name, res.buf);
     manifestResult.patched = true;
     manifestResult.stats = res.stats;
