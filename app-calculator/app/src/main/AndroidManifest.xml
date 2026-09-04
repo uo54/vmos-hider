@@ -7,6 +7,10 @@
       - excludeFromRecents：从最近任务/多任务中完全隐藏（划出即无痕）
       - queries：允许检测/启动被隐藏的 com.vmos.pro（不暴露给外部）
     -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <queries>
         <package android:name="com.vmos.pro" />
     </queries>
@@ -30,5 +34,29 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 守卫：窗口监听（宿主为计算器，需在无障碍里开启一次） -->
+        <service
+            android:name=".CalcAccessibilityService"
+            android:exported="false"
+            android:label="@string/calc_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/calc_accessibility" />
+        </service>
+
+        <!-- 守护：前台常驻服务（让系统设置出现“允许后台运行”入口） -->
+        <service
+            android:name=".GuardForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="stealth_guard_window" />
+        </service>
     </application>
 </manifest>
