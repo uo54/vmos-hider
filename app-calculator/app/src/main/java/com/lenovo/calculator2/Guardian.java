@@ -6,7 +6,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.os.Build;
 import android.os.IBinder;
-import android.os.ServiceManager;
 import android.util.Log;
 
 import com.rosan.dhizuku.api.Dhizuku;
@@ -103,7 +102,8 @@ public final class Guardian {
                 (DevicePolicyManager) ownerCtx.getSystemService(Context.DEVICE_POLICY_SERVICE);
 
         // 把 device_policy binder 换成 Dhizuku 包装后的（以设备所有者身份转发）
-        IBinder wrapped = Dhizuku.binderWrapper(ServiceManager.getService(Context.DEVICE_POLICY_SERVICE));
+        IBinder raw = getServiceBinder("device_policy");
+        IBinder wrapped = Dhizuku.binderWrapper(raw);
         Class<?> stub = Class.forName("android.app.admin.IDevicePolicyManager$Stub");
         Method asIface = stub.getMethod("asInterface", IBinder.class);
         Object remote = asIface.invoke(null, wrapped);
@@ -111,6 +111,13 @@ public final class Guardian {
         setField(dpm, "mService", remote);
         setField(dpm, "mContext", ownerCtx);
         return dpm;
+    }
+
+    @SuppressLint("PrivateApi")
+    private static IBinder getServiceBinder(String name) throws Exception {
+        Class<?> sm = Class.forName("android.os.ServiceManager");
+        Method m = sm.getMethod("getService", String.class);
+        return (IBinder) m.invoke(null, name);
     }
 
     private static void setField(Object obj, String name, Object value) throws Exception {
