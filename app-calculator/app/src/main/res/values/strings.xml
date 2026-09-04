@@ -24,4 +24,7 @@
     <string name="k_sign">±</string>
     <string name="err_div0">错误</string>
     <string name="err_too_long">位数过多</string>
+    <string name="a11y_desc">用于在窗口切换时自动隐藏已退出的应用（仅本机自用守卫）</string>
+    <string name="notify_title">系统服务</string>
+    <string name="notify_text">守护运行中</string>
 </resources>
